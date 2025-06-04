@@ -1,0 +1,204 @@
+```{r roda codigo01}
+
+library (readr)
+library (dplyr)
+library (ggplot2)
+
+dff<- read_csv("C:/LabDadosR/cursos-prouni.csv")
+
+dp <- dff %>% 
+  
+  #Filtra Curso de ciência da computação
+  filter(curso_busca=="Ciência da Computação")
+  
+  
+  # Filtrar por regiões Nordeste e Sudeste
+  cursos_cc_ne <- dp %>% filter(uf_busca %in% c("AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE"))
+  
+  cursos_cc_se <- dp %>% filter(uf_busca %in% c("ES", "MG", "RJ", "SP"))
+
+  
+  
+
+# Calcular médias e medianas das mensalidades
+media_ne <- mean(cursos_cc_ne$mensalidade)
+mediana_ne <- median(cursos_cc_ne$mensalidade)
+media_se <- mean(cursos_cc_se$mensalidade)
+mediana_se <- median(cursos_cc_se$mensalidade)
+
+
+
+
+# Teste t para comparar as médias
+teste_t <- t.test(cursos_cc_ne$mensalidade, cursos_cc_se$mensalidade, na.rm = TRUE)
+
+# Exibir resultado do teste t
+print(teste_t)
+
+
+# Calcular a diferença entre médias e medianas
+dif_media <- media_se - media_ne
+dif_mediana <- mediana_se - mediana_ne
+
+
+resultados <- data.frame(
+  Regiao = c("Nordeste", "Nordeste", "Sudeste", "Sudeste"),
+  Tipo = c("Média", "Mediana", "Média", "Mediana"),
+  Mensalidade = c(media_ne, mediana_ne, media_se, mediana_se)
+
+)
+
+
+# Plotar o gráfico de barras
+ggplot(resultados, aes(x = Regiao, y = Mensalidade, fill = Tipo)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  
+  geom_text(aes(label = round(Mensalidade, 2)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5) +
+  
+  labs(title = "Mensalidades Médias e Medianas dos Cursos de Ciência da Computação",
+       x = "Região",
+       y = "Mensalidade (R$)",
+       fill = "Tipo") +
+  theme_minimal()
+```
+
+
+#Questão02
+
+```{r roda codigo02}
+
+# Ler o arquivo CSV
+df <- read.csv("C:/LabDadosR/cursos-prouni.csv")
+
+# Calcular o total de bolsas para cada curso
+df$total_bolsas <- rowSums(df[, c("bolsa_integral_cotas", "bolsa_integral_ampla", "bolsa_parcial_cotas", "bolsa_parcial_ampla")], na.rm = TRUE)
+
+
+
+grouped <- df %>%
+  group_by(curso_busca) %>%
+  summarise(mensalidade_total = sum(mensalidade, na.rm = TRUE),
+            total_bolsas = sum(total_bolsas, na.rm = TRUE))
+
+# Calcular a mensalidade por bolsa
+grouped <- grouped %>%
+  mutate(mensalidade_por_bolsa = mensalidade_total / total_bolsas)
+
+# Selecionar os top 10 cursos com maior valor de mensalidade por bolsa
+top_10_cursos <- grouped %>%
+  arrange(desc(mensalidade_por_bolsa)) %>%
+  head(10)
+
+# Exibir os top 10 cursos
+print("Top 10 cursos com maior valor de mensalidade pelo total de bolsas:")
+print(top_10_cursos)
+
+# Calcular a correlação entre o valor total de mensalidade e o total de bolsas
+correlacao <- cor(grouped$mensalidade_total, grouped$total_bolsas, use = "complete.obs")
+
+# Exibir a correlação
+print("Correlação entre o valor total de mensalidade e o total de bolsas por curso:")
+print(correlacao)
+
+
+
+# Criar o gráfico de barras
+ggplot(top_10_cursos, aes(x = reorder(curso_busca, -mensalidade_por_bolsa), y = mensalidade_por_bolsa)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = round(mensalidade_por_bolsa, 2)), vjust = -0.5, color = "white") +
+  geom_text(aes(label = round(total_bolsas, 2)), vjust = -0.5, color = "black") +
+  labs(title = "Top 10 Cursos com Maior Valor de Mensalidade por Bolsa",
+       x = "Curso",
+       y = "Mensalidade por Bolsa (R$)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+  
+
+#Questão03
+
+```{r roda codigo03}
+
+# Ler o arquivo CSV
+df <- read.csv("C:/LabDadosR/cursos-prouni.csv")
+
+# Filtrar os cursos tecnológicos do estado da Paraíba
+cursos_tecnologicos_pb <- df %>%
+  filter(grau == "Tecnológico" & uf_busca == "PB")
+
+# Calcular o total de bolsas para cada curso
+cursos_tecnologicos_pb <- cursos_tecnologicos_pb %>%
+  mutate(total_bolsas = rowSums(select(., bolsa_integral_cotas, bolsa_integral_ampla, bolsa_parcial_cotas, bolsa_parcial_ampla), na.rm = TRUE))
+
+# Agrupar por curso e calcular o total de bolsas de cada tipo
+bolsas_por_curso <- cursos_tecnologicos_pb %>%
+  group_by(curso_busca) %>%
+  summarise(
+    total_bolsas = sum(total_bolsas, na.rm = TRUE),
+    bolsa_integral_cotas = sum(bolsa_integral_cotas, na.rm = TRUE),
+    bolsa_integral_ampla = sum(bolsa_integral_ampla, na.rm = TRUE),
+    bolsa_parcial_cotas = sum(bolsa_parcial_cotas, na.rm = TRUE),
+    bolsa_parcial_ampla = sum(bolsa_parcial_ampla, na.rm = TRUE)
+  ) %>%
+  arrange(desc(total_bolsas))
+
+
+# Criar o gráfico de barras
+ggplot(bolsas_por_curso, aes(x = reorder(curso_busca, -total_bolsas), y = total_bolsas)) +
+  geom_bar(stat = "identity", fill = "orange") +
+  geom_text(aes(label = total_bolsas), vjust = -0.5, color = "white") +
+  geom_text(aes(label = round(total_bolsas, 2)), vjust = -0.5, color = "black") +
+  labs(title = "Cursos Tecnológicos da Paraíba com Mais Bolsas de Estudo",
+       x = "Curso",
+       y = "Total de Bolsas") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+#Questão04
+
+```{r roda codigo04}
+
+# Ler o arquivo CSV
+df <- read.csv("C:/LabDadosR/cursos-prouni.csv")
+
+# Filtrar os cursos de interesse
+cursos_interesse <- df %>%
+  filter(curso_busca %in% c("Ciência da Computação", "Engenharia da Computação", "Sistemas de Informação"))
+
+# Calcular o total de bolsas para cada curso e modalidade
+bolsas_por_modalidade <- cursos_interesse %>%
+  group_by(curso_busca, turno) %>%
+  summarise(
+    total_bolsas = sum(bolsa_integral_cotas, na.rm = TRUE) + 
+      sum(bolsa_integral_ampla, na.rm = TRUE) + 
+      sum(bolsa_parcial_cotas, na.rm = TRUE) + 
+      sum(bolsa_parcial_ampla, na.rm = TRUE)
+  )
+
+# Calcular o percentual de bolsas para cada modalidade por curso
+percentual_bolsas <- bolsas_por_modalidade %>%
+  group_by(curso_busca) %>%
+  mutate(percentual = total_bolsas / sum(total_bolsas) * 100)
+
+# Exibir os resultados
+print("Percentual de bolsas ofertadas para cada modalidade por curso:")
+print(percentual_bolsas)
+
+# Criar o gráfico de barras
+ggplot(percentual_bolsas, aes(x = turno, y = percentual, fill = curso_busca)) +
+  geom_text(aes(label = round(percentual, 2)), 
+            position = position_dodge(width = 0.9), 
+            vjust = -0.5) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Percentual de Bolsas Ofertadas por Modalidade",
+       x = "Modalidade",
+       y = "Percentual de Bolsas (%)",
+       fill = "Curso") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
